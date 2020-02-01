@@ -1,0 +1,106 @@
+Index: nginx/src/core/ngx_core.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- nginx/src/core/ngx_core.h	(revision 9e07862d6e9d37041a42bbfa34dd1f56ed547505)
++++ nginx/src/core/ngx_core.h	(date 1580548809131)
+@@ -41,6 +41,7 @@
+ #define  NGX_DONE       -4
+ #define  NGX_DECLINED   -5
+ #define  NGX_ABORT      -6
++#define  NGX_BLOCK      -7
+ 
+ 
+ #include <ngx_errno.h>
+Index: nginx/src/http/ngx_http_upstream.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- nginx/src/http/ngx_http_upstream.c	(revision 9e07862d6e9d37041a42bbfa34dd1f56ed547505)
++++ nginx/src/http/ngx_http_upstream.c	(date 1580548682163)
+@@ -35,8 +35,6 @@
+ static void ngx_http_upstream_wr_check_broken_connection(ngx_http_request_t *r);
+ static void ngx_http_upstream_check_broken_connection(ngx_http_request_t *r,
+     ngx_event_t *ev);
+-static void ngx_http_upstream_connect(ngx_http_request_t *r,
+-    ngx_http_upstream_t *u);
+ static ngx_int_t ngx_http_upstream_reinit(ngx_http_request_t *r,
+     ngx_http_upstream_t *u);
+ static void ngx_http_upstream_send_request(ngx_http_request_t *r,
+@@ -1498,32 +1496,34 @@
+ }
+ 
+ 
+-static void
++void
+ ngx_http_upstream_connect(ngx_http_request_t *r, ngx_http_upstream_t *u)
+ {
+     ngx_int_t          rc;
+     ngx_connection_t  *c;
+ 
+-    r->connection->log->action = "connecting to upstream";
++    if (!u->blocked) {
++        r->connection->log->action = "connecting to upstream";
+ 
+-    if (u->state && u->state->response_time == (ngx_msec_t) -1) {
+-        u->state->response_time = ngx_current_msec - u->start_time;
+-    }
++        if (u->state && u->state->response_time == (ngx_msec_t) -1) {
++            u->state->response_time = ngx_current_msec - u->start_time;
++        }
+ 
+-    u->state = ngx_array_push(r->upstream_states);
+-    if (u->state == NULL) {
+-        ngx_http_upstream_finalize_request(r, u,
+-                                           NGX_HTTP_INTERNAL_SERVER_ERROR);
+-        return;
+-    }
++		u->state = ngx_array_push(r->upstream_states);
++		if (u->state == NULL) {
++			ngx_http_upstream_finalize_request(r, u,
++											   NGX_HTTP_INTERNAL_SERVER_ERROR);
++			return;
++		}
+ 
+-    ngx_memzero(u->state, sizeof(ngx_http_upstream_state_t));
++		ngx_memzero(u->state, sizeof(ngx_http_upstream_state_t));
+ 
+-    u->start_time = ngx_current_msec;
++		u->start_time = ngx_current_msec;
+ 
+-    u->state->response_time = (ngx_msec_t) -1;
+-    u->state->connect_time = (ngx_msec_t) -1;
+-    u->state->header_time = (ngx_msec_t) -1;
++		u->state->response_time = (ngx_msec_t) -1;
++		u->state->connect_time = (ngx_msec_t) -1;
++		u->state->header_time = (ngx_msec_t) -1;
++	}
+ 
+     rc = ngx_event_connect_peer(&u->peer);
+ 
+Index: nginx/src/http/ngx_http_upstream.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- nginx/src/http/ngx_http_upstream.h	(revision 9e07862d6e9d37041a42bbfa34dd1f56ed547505)
++++ nginx/src/http/ngx_http_upstream.h	(date 1580548816110)
+@@ -396,6 +396,7 @@
+     unsigned                         request_body_sent:1;
+     unsigned                         request_body_blocked:1;
+     unsigned                         header_sent:1;
++    unsigned                         blocked:1;
+ };
+ 
+ 
+@@ -423,6 +424,8 @@
+ ngx_int_t ngx_http_upstream_hide_headers_hash(ngx_conf_t *cf,
+     ngx_http_upstream_conf_t *conf, ngx_http_upstream_conf_t *prev,
+     ngx_str_t *default_hide_headers, ngx_hash_init_t *hash);
++void ngx_http_upstream_connect(ngx_http_request_t *r,
++    ngx_http_upstream_t *u);
+ 
+ 
+ #define ngx_http_conf_upstream_srv_conf(uscf, module)                         \
