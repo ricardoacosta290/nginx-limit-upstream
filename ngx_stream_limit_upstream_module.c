@@ -166,7 +166,6 @@ static ngx_command_t ngx_stream_limit_ups_commands[] = {
       ngx_null_command
 };
 
-
 static ngx_stream_module_t ngx_stream_limit_ups_module_ctx = {
     NULL,
     ngx_stream_limit_ups_init,
@@ -177,7 +176,6 @@ static ngx_stream_module_t ngx_stream_limit_ups_module_ctx = {
     ngx_stream_limit_ups_create_srv_conf,
     ngx_stream_limit_ups_merge_srv_conf
 };
-
 
 ngx_module_t ngx_stream_limit_upstream_module = {
     NGX_MODULE_V1,

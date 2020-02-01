@@ -318,7 +318,6 @@ ngx_http_limit_upstream_cleanup(void *data)
         lnode->qlen--;
 
         /* resume a request in wait queue */
-
         ctx = wnode->ctx;
 
         ngx_log_error(ctx->lucf->log_level, ctx->r->connection->log, 0,
